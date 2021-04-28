@@ -28,7 +28,7 @@ int encoderPos_2 = 0;
  
 //PD control
 int   targetPos_1  = 100;
-int	  targetPos_2  = 150;
+int   targetPos_2  = 150;
 int   error_1;
 int   error_2;
 int   control_1;
@@ -160,29 +160,29 @@ void pv(){
 switch (sensorBit){
 
 case 0b100000: error_1 = -4;
-  			   error_2 = -4; break;
+               error_2 = -4; break;
 case 0b010000: error_1 = -3;
-  			   error_2 = -3; break;
+               error_2 = -3; break;
 case 0b110000: error_1 = -2;
-  			   error_2 = -2; break;
+               error_2 = -2; break;
 case 0b011000: error_1 = -1;
-  			   error_2 = -1; break;
+               error_2 = -1; break;
   //	||
 case 0b001000: error_1 = 0;
-  			   error_2 = 0; break;
+               error_2 = 0; break;
 case 0b000100: error_1 = 0;
-  			   error_2 = 0; break;
+               error_2 = 0; break;
 case 0b001100: error_1 = 0;
-  			   error_2 = 0; break;
+               error_2 = 0; break;
   //	||
 case 0b000110: error_1 = 1;
-  			   error_2 = 1; break;
+               error_2 = 1; break;
 case 0b000010: error_1 = 2;
-  			   error_2 = 2; break;
+               error_2 = 2; break;
 case 0b000001: error_1 = 3;
-  			   error_2 = 3; break;
+               error_2 = 3; break;
 case 0b000011: error_1 = 4;
-  			   error_2 = 4; break;
+               error_2 = 4; break;
 
 default : error_1 = lastError;
           error_2 = lastError; break;
