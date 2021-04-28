@@ -1,4 +1,5 @@
-#include <EEPROM.h>
+//kucing abadi
+
 //motor directory
 #define CW  0
 #define CCW 1
@@ -8,22 +9,30 @@
 #define motorLPWMPin 9
 #define motorRDirPin 5
 #define motorRPWMPin 6
-#define enablePin1 8
-#define enablePin2 3
+#define enablePin_1 8
+#define enablePin_2 3
  
 //encoder pin
-#define encoder1PinA 2
-#define encoder1PinB 4
-#define encoder2PinA 10
-#define encoder2PinB 11
+#define encoderPinA_1 2
+#define encoderPinB_1 4
+#define encoderPinA_2 10
+#define encoderPinB_2 11
  
+//button pin
+#define button1 12
+#define button2 13
+
 //encoder var
-int encoderPos = 0;
+int encoderPos_1 = 0;
+int encoderPos_2 = 0;
  
 //PD control
-int   targetPos   = 100;
-int   error;
-int   control;
+int   targetPos_1  = 100;
+int	  targetPos_2  = 150;
+int   error_1;
+int   error_2;
+int   control_1;
+int   control_2;
 int   velocityR;
 int   velocityL;
 
@@ -31,15 +40,11 @@ int peka = 805;
 
 int adc_sensor[6],
 	pekax[6],
-	sensorMax[6] = {0, 0, 0, 0, 0, 0},
-	sensorMin[6] = {1023, 1023, 1023, 1023, 1023, 1023},
+	sensorMax[6] = {32, 32, 32, 32, 32, 32},
+	sensorMin[6] = {685, 685, 685, 685, 685, 685},
 	sendat[6],
-	robotSpeedRight,
-	robotSpeedLeft,
-	robotSpeed = 170,
-	kp = 25,
-	kd = 7,
-    ki = 0,
+	kp = 10,
+	kd = 1,
 	rate_i,
 	rate_d,
 	lastError = 0,
@@ -47,15 +52,20 @@ int adc_sensor[6],
 	rate,
 	sensorBit,
 	maxpwm = 250,
-	t;
+	t,
+    lane = 0;
  
 //external interrupt encoder
-void doEncoderA()
+void doEncoder_1()
 {
-  digitalRead(encoder1PinB)?encoderPos--:encoderPos++;
-  digitalRead(encoder2PinB)?encoderPos--:encoderPos++;
+  digitalRead(encoderPinB_1)?encoderPos_1--:encoderPos_1++;
 }
- 
+
+void doEncoder_2()
+{
+  digitalRead(encoderPinB_2)?encoderPos_2--:encoderPos_2++;
+}
+
 void setup()
 {
   pinMode(A0, INPUT);
@@ -64,31 +74,46 @@ void setup()
   pinMode(A3, INPUT);
   pinMode(A4, INPUT);
   pinMode(A5, INPUT);
+  //setup button
+  pinMode(button1, INPUT_PULLUP);
+  pinMode(button2, INPUT_PULLUP);
   //setup interrupt
-    pinMode(encoder1PinA, INPUT_PULLUP);
-    pinMode(encoder1PinB, INPUT_PULLUP);
-    pinMode(encoder2PinA, INPUT_PULLUP);
-    pinMode(encoder2PinB, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(encoder1PinA), doEncoderA,RISING);
-    attachInterrupt(digitalPinToInterrupt(encoder2PinA), doEncoderA,RISING);
+    pinMode(encoderPinA_1, INPUT_PULLUP);
+    pinMode(encoderPinB_1, INPUT_PULLUP);
+    pinMode(encoderPinA_2, INPUT_PULLUP);
+    pinMode(encoderPinB_2, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(encoderPinA_1), doEncoder_1, RISING);
+    attachInterrupt(digitalPinToInterrupt(encoderPinA_2), doEncoder_2, RISING);
    
     //setup motor driver
     pinMode(motorLDirPin, OUTPUT);
     pinMode(motorRDirPin, OUTPUT);
-    pinMode(enablePin1, OUTPUT);
-    pinMode(enablePin2, OUTPUT);
-    digitalWrite(enablePin1, HIGH);
-    digitalWrite(enablePin2, HIGH);
+    pinMode(enablePin_1, OUTPUT);
+    pinMode(enablePin_2, OUTPUT);
+    digitalWrite(enablePin_1, HIGH);
+    digitalWrite(enablePin_2, HIGH);
    
     Serial.begin(9600);
 }
  
 void loop()
 {
-  follow_line();
+  if(digitalRead(button1)==LOW){
+    lane=2;
+  }
   
-  kalibrasistart();
-       
+  if(digitalRead(button2)==LOW){
+    lane=1;
+  }
+    switch(lane){
+      case 1:break;
+      case 2:
+             follow_line();
+             kalibrasistart();
+      default:break;
+    }
+  //Serial.println();
+  
 }
 
 
@@ -99,7 +124,6 @@ adc_sensor[2] = analogRead(A2);
 adc_sensor[3] = analogRead(A3);
 adc_sensor[4] = analogRead(A4);
 adc_sensor[5] = analogRead(A5);
-delay(10);
 for (x = 5; x >= 0; x--){
 if(adc_sensor[x] > sensorMax[x]){
 sensorMax[x] = adc_sensor[x];
@@ -112,13 +136,12 @@ pekax[x] = (sensorMax[x] + sensorMin[x]) / 2;
 }
 
 void readSensor(){
-adc_sensor[0] = EEPROM.read(A0);
-adc_sensor[1] = EEPROM.read(A1);
-adc_sensor[2] = EEPROM.read(A2);
-adc_sensor[3] = EEPROM.read(A3);
-adc_sensor[4] = EEPROM.read(A4);
-adc_sensor[5] = EEPROM.read(A5);
-delay(10);
+adc_sensor[0] = analogRead(A0);
+adc_sensor[1] = analogRead(A1);
+adc_sensor[2] = analogRead(A2);
+adc_sensor[3] = analogRead(A3);
+adc_sensor[4] = analogRead(A4);
+adc_sensor[5] = analogRead(A5);
 for (x = 5; x >= 0; x--){
 if(adc_sensor[x] > pekax[x]){
 sendat[x] = 1;
@@ -136,32 +159,58 @@ sensorBit += sendat[x] * (1 << x);
 void pv(){
 switch (sensorBit){
 
-case 0b100000: error = -3; break;
-case 0b010000: error = -2; break;
-case 0b110000: error = -1; break;
-case 0b001000: error = 0; break;
-case 0b000100: error = 0; break;
-case 0b001100: error = 0; break;
-case 0b000010: error = 1; break;
-case 0b000001: error = 2; break;
-case 0b000011: error = 3; break;
+case 0b100000: error_1 = -4;
+  			   error_2 = -4; break;
+case 0b010000: error_1 = -3;
+  			   error_2 = -3; break;
+case 0b110000: error_1 = -2;
+  			   error_2 = -2; break;
+case 0b011000: error_1 = -1;
+  			   error_2 = -1; break;
+  //	||
+case 0b001000: error_1 = 0;
+  			   error_2 = 0; break;
+case 0b000100: error_1 = 0;
+  			   error_2 = 0; break;
+case 0b001100: error_1 = 0;
+  			   error_2 = 0; break;
+  //	||
+case 0b000110: error_1 = 1;
+  			   error_2 = 1; break;
+case 0b000010: error_1 = 2;
+  			   error_2 = 2; break;
+case 0b000001: error_1 = 3;
+  			   error_2 = 3; break;
+case 0b000011: error_1 = 4;
+  			   error_2 = 4; break;
 
-default : error = lastError; break;
+default : error_1 = lastError;
+          error_2 = lastError; break;
 }
 }
 
 void follow_line(){
 readSensor();
 pv();
-  rate_d = error - lastError;
-  rate_i = error + lastError;
-  lastError = error;
-
-  control = (kp * error) + (ki * rate_i) + (kd * rate_d);
-  error   = targetPos - encoderPos;
+  
+  error_1   = targetPos_1 - encoderPos_1;
+  rate_d = error_1 - lastError;
+  rate_i = error_1 + lastError;
+  lastError = error_1;
+  
+  control_1 = (kp * error_1) + (kd * rate_d);
+  
+  velocityL = min(max(control_1, -255), 255);
+  
+  
+  error_2   = targetPos_2 - encoderPos_2;
+  rate_d = error_2 - lastError;
+  rate_i = error_2 + lastError;
+  lastError = error_2;
+  //Serial.println(encoderPos_2);
+  control_2 = (kp * error_2) + (kd * rate_d);
    
-    velocityL = min(max(control, -255), 255);
-    velocityR = min(max(control, -255), 255);
+  velocityR = min(max(control_2, -255), 255);
     
     if(velocityL >= 0)
     {
@@ -180,8 +229,10 @@ pv();
     }
     else
     {
-        digitalWrite(motorRDirPin, CCW);
+      digitalWrite(motorRDirPin, CCW);
         analogWrite(motorRPWMPin, 255+velocityR);
     }
-    Serial.println(encoderPos);  
+    Serial.print(encoderPos_1);  
+    Serial.print("\t");
+    Serial.println(encoderPos_2);
 }
